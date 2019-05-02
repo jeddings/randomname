@@ -1,0 +1,69 @@
+Acquired Immunodeficiency Syndrome
+Amebiasis
+Anthrax
+Arboviral Infection
+Botulism
+Brucellosis
+Campylobacter Infection
+Chancroid
+Chickenpox
+Chlamydia Trachomatis Infection
+Cholera
+Creutzfeldt-Jakob Disease
+Cryptosporidiosis
+Cyclosporiasis
+Diphtheria
+Ehrlichiosis
+Escherichia Coli
+Giardiasis
+Gonorrhea
+Granuloma Inguinale
+Haemophilus Influenzae Infection
+Hantavirus Pulmonary Syndrome
+Hemolytic Uremic Syndrome
+Hepatitis A
+Hepatitis B
+Hepatitis C
+Hepatitis
+Human Immunodeficiency Virus Infection
+Influenza
+Kawasaki Syndrome
+Legionellosis
+Leprosy
+Listeriosis
+Lyme Disease
+Lymphogranuloma Venereum
+Malaria
+Measles
+Meningococcal Infection
+Monkeypox
+Mumps
+Ophthalmia Neonatorum
+Pertussis
+Plague
+Poliomyelitis
+Psittacosis
+Q Fever
+Rabies
+Rocky Mountain Spotted Fever
+Rubella 
+Salmonellosis
+Severe Acute Respiratory Syndrome
+Shigellosis
+Smallpox
+Streptococcal Disease
+Streptococcus Pneumoniae
+Syphilis
+Tetanus
+Toxic Shock Syndrome
+Toxic Substance Related Illnesses
+Trichinosis
+Tuberculosis Disease
+Tularemia
+Typhoid Fever
+Typhus
+Vaccinia
+Vancomycin-Resistant Staphylococcus Aureus
+Vibrio Infection
+Viral Hemorrhagic Fever
+Yellow Fever 
