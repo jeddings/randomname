@@ -39,11 +39,11 @@ function generateNames(num, minLen, maxLen, nameList, filterOutDups) {
   var oneLetters = "";
   var twoLetters = new Object();
   var threeLetters = new Object();
-  var maxOne = 0;
-  var maxTwo = 0;
-  var maxThree = 0;
   var minNameLen = 10000;
   var maxNameLen = 0;
+  var lengthHistogram = new Object();
+  var validLengths = [];
+  var endPairs = new Object();
   
   for (var i = 0; i < names.length; i++) {
     var curr = new String(trim(names[i]));
@@ -60,6 +60,18 @@ function generateNames(num, minLen, maxLen, nameList, filterOutDups) {
 
     minNameLen = Math.min(minNameLen, curr.length);
     maxNameLen = Math.max(maxNameLen, curr.length);
+
+    if (lengthHistogram[curr.length] == null) {
+      lengthHistogram[curr.length] = 0;
+      validLengths.push(curr.length);
+    }
+    lengthHistogram[curr.length] += 1;
+
+    var endingPair = curr.substring(curr.length - 2);
+    if (endPairs[endingPair] == null) {
+      endPairs[endingPair] = 0;
+    }
+    endPairs[endingPair] += 1;
 
     for (var j = 0; j < curr.length - 2; j++) {
 
@@ -79,8 +91,6 @@ function generateNames(num, minLen, maxLen, nameList, filterOutDups) {
           oneLetters += "" + curr.charAt(j);
         }
 
-        // record the max count to do randomizations later
-        maxOne = Math.max(maxOne, one[curr.charAt(j)]);
       }
 
       // looking at the second letter of the word
@@ -109,8 +119,6 @@ function generateNames(num, minLen, maxLen, nameList, filterOutDups) {
           twoLetters[curr.charAt(j-1)] += "" + curr.charAt(j);
         }
 
-        // record the max count to do randomizations later
-        maxTwo = Math.max(maxTwo, two[curr.charAt(j-1)][curr.charAt(j)]);
       }
 
       // looking at the third and later letters of the word
@@ -145,8 +153,6 @@ function generateNames(num, minLen, maxLen, nameList, filterOutDups) {
           threeLetters[curr.charAt(j-2)][curr.charAt(j-1)] += "" + curr.charAt(j);
         }
 
-        // record the max count to do randomizations later
-        maxThree = Math.max(maxThree, three[curr.charAt(j-2)][curr.charAt(j-1)][curr.charAt(j)]);
       }
     }
   }
@@ -160,6 +166,102 @@ function generateNames(num, minLen, maxLen, nameList, filterOutDups) {
 
   if (effectiveMaxLen < effectiveMinLen) {
     return genList;
+  }
+
+  var candidateLengths = [];
+  for (var lengthIndex = 0; lengthIndex < validLengths.length; lengthIndex++) {
+    var candidateLen = validLengths[lengthIndex];
+    if (candidateLen >= effectiveMinLen && candidateLen <= effectiveMaxLen) {
+      candidateLengths.push(candidateLen);
+    }
+  }
+
+  if (candidateLengths.length === 0) {
+    return genList;
+  }
+
+  function pickTargetLength() {
+    var totalWeight = 0;
+    for (var idx = 0; idx < candidateLengths.length; idx++) {
+      totalWeight += lengthHistogram[candidateLengths[idx]];
+    }
+
+    if (totalWeight <= 0) {
+      return effectiveMinLen;
+    }
+
+    var roll = rndInt(totalWeight);
+    var running = 0;
+    for (var index = 0; index < candidateLengths.length; index++) {
+      var currentLength = candidateLengths[index];
+      running += lengthHistogram[currentLength];
+      if (roll < running) {
+        return currentLength;
+      }
+    }
+
+    return candidateLengths[candidateLengths.length - 1];
+  }
+
+  function pickWeightedLetter(candidates, getWeight) {
+    if (candidates == null || candidates.length === 0) {
+      return "";
+    }
+
+    var totalWeight = 0;
+    for (var i = 0; i < candidates.length; i++) {
+      totalWeight += getWeight(candidates.charAt(i)) || 0;
+    }
+
+    if (totalWeight <= 0) {
+      return "";
+    }
+
+    var roll = rndInt(totalWeight);
+    var running = 0;
+    for (var j = 0; j < candidates.length; j++) {
+      var candidate = candidates.charAt(j);
+      running += getWeight(candidate) || 0;
+      if (roll < running) {
+        return candidate;
+      }
+    }
+
+    return candidates.charAt(candidates.length - 1);
+  }
+
+  function looksReasonableName(name) {
+    if (name == null || name.length < effectiveMinLen || name.length > effectiveMaxLen) {
+      return false;
+    }
+
+    if (!/^[a-z]+$/.test(name)) {
+      return false;
+    }
+
+    var vowels = "aeiouy";
+    var hasVowel = false;
+    var consonantRun = 0;
+
+    for (var i = 0; i < name.length; i++) {
+      var ch = name.charAt(i);
+      var isVowel = vowels.indexOf(ch) !== -1;
+      if (isVowel) {
+        hasVowel = true;
+        consonantRun = 0;
+      } else {
+        consonantRun += 1;
+        if (consonantRun > 3) {
+          return false;
+        }
+      }
+
+      if (i >= 2 && name.charAt(i) === name.charAt(i - 1) && name.charAt(i - 1) === name.charAt(i - 2)) {
+        return false;
+      }
+    }
+
+    return hasVowel;
   }
   
   /*
@@ -183,8 +285,6 @@ function generateNames(num, minLen, maxLen, nameList, filterOutDups) {
   document.rd.gen.value = s;
   */
   
-  var stopFactor = 1;
-  var lengthFactor = 17;
   var stopProcessing = false;
   
   var generatedCount = 0;
@@ -194,19 +294,17 @@ function generateNames(num, minLen, maxLen, nameList, filterOutDups) {
   while (generatedCount < num && generationAttempts < maxGenerationAttempts) {
     generationAttempts++;
     var genName = "";
+    var targetLen = pickTargetLength();
     
     var sanity = 0;
   
     while (sanity++ < 15000) {
       if (genName.length == 0) {
-        var offset = rndInt(oneLetters.length);
-        for (var q = 0; q < oneLetters.length; q++) {
-          var rOne = rndInt(maxOne*stopFactor);
-          var letter = oneLetters.charAt((q+offset)%(oneLetters.length));
-          if (rOne < (1*one[letter])) {
-            genName += "" + letter;
-            break;
-          }
+        var firstLetter = pickWeightedLetter(oneLetters, function(candidate) {
+          return one[candidate] || 0;
+        });
+        if (firstLetter.length > 0) {
+          genName += firstLetter;
         }
       }
       
@@ -216,15 +314,14 @@ function generateNames(num, minLen, maxLen, nameList, filterOutDups) {
           genName = "";
           continue;
         }
-        var offset = rndInt(secondLetters.length);
-        for (var r = 0; r < secondLetters.length; r++) {
-          var rTwo = rndInt(maxTwo*stopFactor);
-          var letter = secondLetters.charAt((r+offset)%(secondLetters.length));
-          if (rTwo < (1*two[genName.charAt(0)][letter])) {
-            genName += "" + letter;
-            break;
-          }
+        var secondLetter = pickWeightedLetter(secondLetters, function(candidate) {
+          return two[genName.charAt(0)][candidate] || 0;
+        });
+        if (secondLetter.length === 0) {
+          genName = "";
+          continue;
         }
+        genName += secondLetter;
       }
       
       if (genName.length > 1) {
@@ -234,17 +331,26 @@ function generateNames(num, minLen, maxLen, nameList, filterOutDups) {
           //alert(genName + ", " + genName.charAt((genName.length)-2) + ", " + genName.charAt((genName.length)-1));
           genName = "";
         } else {
-          var offset = rndInt(thirdLetters.length);
-          for (var s = 0; s < thirdLetters.length; s++) {
-            var rThree = rndInt(maxThree*stopFactor);
-            var letter = thirdLetters.charAt((s+offset)%(thirdLetters.length));
-            if (rThree < (1*three[genName.charAt(genName.length-2)][genName.charAt(genName.length-1)][letter])) {
-              genName += "" + letter;
-              if ((genName.length >= effectiveMinLen && rndInt(lengthFactor) < 2) || genName.length >= effectiveMaxLen) {
-                stopProcessing = true;
-              }
-              break;
+          var thirdLetter = pickWeightedLetter(thirdLetters, function(candidate) {
+            return three[genName.charAt(genName.length-2)][genName.charAt(genName.length-1)][candidate] || 0;
+          });
+
+          if (thirdLetter.length === 0) {
+            genName = "";
+            continue;
+          }
+
+          genName += thirdLetter;
+          if (genName.length >= targetLen) {
+            var currentEndingPair = genName.substring(genName.length - 2);
+            if (endPairs[currentEndingPair] != null) {
+              stopProcessing = true;
+            } else if (genName.length >= effectiveMaxLen) {
+              genName = "";
+              stopProcessing = true;
             }
+          } else if (genName.length >= effectiveMaxLen) {
+            stopProcessing = true;
           }
         }
       
@@ -259,6 +365,14 @@ function generateNames(num, minLen, maxLen, nameList, filterOutDups) {
     var useName = true;
     
     if (genName.length < effectiveMinLen || genName.length > effectiveMaxLen) {
+      useName = false;
+    }
+
+    if (useName && endPairs[genName.substring(genName.length - 2)] == null) {
+      useName = false;
+    }
+
+    if (useName && !looksReasonableName(genName)) {
       useName = false;
     }
     
