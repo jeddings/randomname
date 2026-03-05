@@ -228,7 +228,8 @@ function generateNames(num, minLen, maxLen, nameList, filterOutDups) {
       }
       
       if (genName.length > 1) {
-        var thirdLetters = threeLetters[genName.charAt((genName.length)-2)][genName.charAt((genName.length)-1)];
+        var thirdLettersByFirst = threeLetters[genName.charAt((genName.length)-2)];
+        var thirdLetters = thirdLettersByFirst == null ? null : thirdLettersByFirst[genName.charAt((genName.length)-1)];
         if (thirdLetters == null) {
           //alert(genName + ", " + genName.charAt((genName.length)-2) + ", " + genName.charAt((genName.length)-1));
           genName = "";
