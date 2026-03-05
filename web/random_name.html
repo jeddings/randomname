@@ -33,11 +33,12 @@
         <pre id="errorDetails"></pre>
       </div>
 
-      <label>Count <input id="num" type="number" value="10" min="1" max="100"></label>
+      <label>Count <input id="num" type="number" value="10" min="1"></label>
       <label>Min length <input id="minLen" type="number" value="3" min="1" max="100"></label>
       <label>Max length <input id="maxLen" type="number" value="12" min="1" max="100"></label>
 
       <label><input id="filterDups" type="checkbox" checked> Filter duplicates (exclude exact seeds)</label>
+      <label><input id="strictMode" type="checkbox" checked> Strict mode (stay close to seed names)</label>
 
       <button id="generateBtn">Generate</button>
 
@@ -110,9 +111,10 @@
           const minLen = parseInt(document.getElementById("minLen").value, 10);
           const maxLen = parseInt(document.getElementById("maxLen").value, 10);
           const filterDups = document.getElementById("filterDups").checked;
+          const strictMode = document.getElementById("strictMode").checked;
 
           // generateNames is defined in ../src/generatenames.js
-          const result = generateNames(num, minLen, maxLen, seedText, filterDups);
+          const result = generateNames(num, minLen, maxLen, seedText, filterDups, strictMode);
           output.textContent = result;
 
           setStatus(`Done. Seed: ${seedFile}`);

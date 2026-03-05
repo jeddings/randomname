@@ -21,13 +21,13 @@ if (typeof generateNames !== "function") {
 function usage() {
   console.log(`
 Usage:
-  node bin/randomname.js --seed <filename-in-data-or-path> [--num 10] [--min 3] [--max 12] [--no-filter-dups]
+  node bin/randomname.js --seed <filename-in-data-or-path> [--num 10] [--min 3] [--max 12] [--no-filter-dups] [--strict]
   node bin/randomname.js --list
 `);
 }
 
 function parseArgs(argv) {
-  const args = { num: 10, min: 3, max: 12, filterDups: true };
+  const args = { num: 10, min: 3, max: 12, filterDups: true, strict: false };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--help" || a === "-h") args.help = true;
@@ -36,6 +36,7 @@ function parseArgs(argv) {
     else if (a === "--num") args.num = parseInt(argv[++i], 10);
     else if (a === "--min") args.min = parseInt(argv[++i], 10);
     else if (a === "--max") args.max = parseInt(argv[++i], 10);
+    else if (a === "--strict") args.strict = true;
     else if (a === "--no-filter-dups") args.filterDups = false;
     else {
       console.error(`Unknown arg: ${a}`);
@@ -77,5 +78,5 @@ if (!seedPath) {
 }
 
 const seedText = fs.readFileSync(seedPath, "utf8");
-const out = generateNames(args.num, args.min, args.max, seedText, args.filterDups);
+const out = generateNames(args.num, args.min, args.max, seedText, args.filterDups, args.strict);
 process.stdout.write(out);

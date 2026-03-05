@@ -4,17 +4,18 @@
 
 */
 
-function generateNames(num, minLen, maxLen, nameList, filterOutDups) {
+function generateNames(num, minLen, maxLen, nameList, filterOutDups, strictMode) {
   var genList = "";
 
   num = parseInt(num, 10);
   if (isNaN(num) || num <= 0) {
     return genList;
   }
-  num = Math.min(10, num);
+  num = Math.floor(num);
 
   var requestedMinLen = parseInt(minLen, 10);
   var requestedMaxLen = parseInt(maxLen, 10);
+  strictMode = !!strictMode;
 
   if (isNaN(requestedMinLen)) {
     requestedMinLen = 1;
@@ -52,7 +53,7 @@ function generateNames(num, minLen, maxLen, nameList, filterOutDups) {
       continue;
     }
 
-    sourceNames.push(curr);
+    sourceNames.push(String(curr));
 
     if (curr.length < 3) {
       continue;
@@ -263,6 +264,57 @@ function generateNames(num, minLen, maxLen, nameList, filterOutDups) {
 
     return hasVowel;
   }
+
+  function editDistanceWithinLimit(a, b, limit) {
+    var aLen = a.length;
+    var bLen = b.length;
+
+    if (Math.abs(aLen - bLen) > limit) {
+      return false;
+    }
+
+    var prev = [];
+    var curr = [];
+
+    for (var j = 0; j <= bLen; j++) {
+      prev[j] = j;
+    }
+
+    for (var i = 1; i <= aLen; i++) {
+      curr[0] = i;
+      var rowMin = curr[0];
+
+      for (var k = 1; k <= bLen; k++) {
+        var cost = a.charAt(i - 1) === b.charAt(k - 1) ? 0 : 1;
+        curr[k] = Math.min(
+          prev[k] + 1,
+          curr[k - 1] + 1,
+          prev[k - 1] + cost
+        );
+        rowMin = Math.min(rowMin, curr[k]);
+      }
+
+      if (rowMin > limit) {
+        return false;
+      }
+
+      var temp = prev;
+      prev = curr;
+      curr = temp;
+    }
+
+    return prev[bLen] <= limit;
+  }
+
+  function isCloseToAnySeed(name, maxDistance) {
+    for (var i = 0; i < sourceNames.length; i++) {
+      var seed = sourceNames[i];
+      if (editDistanceWithinLimit(name, seed, maxDistance)) {
+        return true;
+      }
+    }
+    return false;
+  }
   
   /*
   var s = "";
@@ -289,7 +341,9 @@ function generateNames(num, minLen, maxLen, nameList, filterOutDups) {
   
   var generatedCount = 0;
   var generationAttempts = 0;
-  var maxGenerationAttempts = num * 500;
+  var strictAttemptFactor = strictMode ? 6000 : 2000;
+  var sourceSizeFactor = Math.max(1, Math.min(sourceNames.length, 500));
+  var maxGenerationAttempts = Math.max(num * strictAttemptFactor, sourceSizeFactor * 40);
 
   while (generatedCount < num && generationAttempts < maxGenerationAttempts) {
     generationAttempts++;
@@ -373,6 +427,10 @@ function generateNames(num, minLen, maxLen, nameList, filterOutDups) {
     }
 
     if (useName && !looksReasonableName(genName)) {
+      useName = false;
+    }
+
+    if (useName && strictMode && !isCloseToAnySeed(genName, 2)) {
       useName = false;
     }
     
