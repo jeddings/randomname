@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Random Name Generator</title>
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 24px; }
+      label { display:block; margin-top: 12px; }
+      textarea, input, select { width: 100%; max-width: 720px; }
+      textarea { height: 180px; }
+      pre { white-space: pre-wrap; background: #f6f8fa; padding: 12px; border-radius: 8px; max-width: 720px; }
+      .row { max-width: 720px; }
+      button { margin-top: 12px; }
+      .small { color: #555; font-size: 12px; }
+    </style>
+    <script src="../src/generatenames.js"></script>
+  </head>
+  <body>
+    <h1>Random Name Generator</h1>
+
+    <div class="row">
+      <label>
+        Seed list
+        <select id="seedSelect"></select>
+      </label>
+
+      <div class="small" id="seedStatus"></div>
+
+      <label>Count <input id="num" type="number" value="10" min="1" max="100"></label>
+      <label>Min length <input id="minLen" type="number" value="3" min="1" max="100"></label>
+      <label>Max length <input id="maxLen" type="number" value="12" min="1" max="100"></label>
+
+      <label><input id="filterDups" type="checkbox" checked> Filter duplicates (exclude exact seeds)</label>
+
+      <button id="generateBtn">Generate</button>
+
+      <h2>Generated</h2>
+      <pre id="output"></pre>
+    </div>
+
+    <script>
+      async function loadSeedManifest() {
+        const res = await fetch("../data/seedlists.json");
+        if (!res.ok) throw new Error("Failed to load seedlists.json");
+        return await res.json();
+      }
+
+      async function loadSeedFile(filename) {
+        const res = await fetch(`../data/${encodeURIComponent(filename)}`);
+        if (!res.ok) throw new Error(`Failed to fetch seed file: ${filename}`);
+        return await res.text();
+      }
+
+      function setStatus(msg) {
+        document.getElementById("seedStatus").textContent = msg || "";
+      }
+
+      async function init() {
+        const select = document.getElementById("seedSelect");
+        const seeds = await loadSeedManifest();
+
+        // Populate dropdown
+        select.innerHTML = "";
+        for (const f of seeds) {
+          const opt = document.createElement("option");
+          opt.value = f;
+          opt.textContent = f;
+          select.appendChild(opt);
+        }
+
+        setStatus(`Loaded ${seeds.length} seed list names. Select one and click Generate.`);
+      }
+
+      document.getElementById("generateBtn").addEventListener("click", async () => {
+        const output = document.getElementById("output");
+        output.textContent = "";
+        setStatus("Loading seed list...");
+
+        try {
+          const seedFile = document.getElementById("seedSelect").value;
+          const seedText = await loadSeedFile(seedFile);
+
+          setStatus("Generating...");
+          const num = parseInt(document.getElementById("num").value, 10);
+          const minLen = parseInt(document.getElementById("minLen").value, 10);
+          const maxLen = parseInt(document.getElementById("maxLen").value, 10);
+          const filterDups = document.getElementById("filterDups").checked;
+
+          // generateNames is defined in ../src/generatenames.js
+          const result = generateNames(num, minLen, maxLen, seedText, filterDups);
+          output.textContent = result;
+
+          setStatus(`Done. Seed: ${seedFile}`);
+        } catch (e) {
+          setStatus(`Error: ${e.message}`);
+        }
+      });
+
+      init().catch(e => setStatus(`Error initializing: ${e.message}`));
+    </script>
+  </body>
+</html>
