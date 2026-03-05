@@ -13,6 +13,8 @@
       .row { max-width: 720px; }
       button { margin-top: 12px; }
       .small { color: #555; font-size: 12px; }
+      .error { margin-top: 12px; color: #b00020; background: #fff1f1; border: 1px solid #ffd0d0; padding: 10px; border-radius: 6px; max-width: 720px; }
+      .error pre { margin: 8px 0 0; background: transparent; padding: 0; }
     </style>
     <script src="../src/generatenames.js"></script>
   </head>
@@ -26,6 +28,10 @@
       </label>
 
       <div class="small" id="seedStatus"></div>
+      <div id="errorBox" class="error" style="display:none;">
+        <div id="errorSummary"></div>
+        <pre id="errorDetails"></pre>
+      </div>
 
       <label>Count <input id="num" type="number" value="10" min="1" max="100"></label>
       <label>Min length <input id="minLen" type="number" value="3" min="1" max="100"></label>
@@ -56,6 +62,23 @@
         document.getElementById("seedStatus").textContent = msg || "";
       }
 
+      function clearError() {
+        document.getElementById("errorBox").style.display = "none";
+        document.getElementById("errorSummary").textContent = "";
+        document.getElementById("errorDetails").textContent = "";
+      }
+
+      function showError(err, context) {
+        const box = document.getElementById("errorBox");
+        const summary = document.getElementById("errorSummary");
+        const details = document.getElementById("errorDetails");
+
+        const message = err && err.message ? err.message : String(err || "Unknown error");
+        summary.textContent = context ? `${context}: ${message}` : message;
+        details.textContent = err && err.stack ? err.stack : "";
+        box.style.display = "block";
+      }
+
       async function init() {
         const select = document.getElementById("seedSelect");
         const seeds = await loadSeedManifest();
@@ -75,6 +98,7 @@
       document.getElementById("generateBtn").addEventListener("click", async () => {
         const output = document.getElementById("output");
         output.textContent = "";
+        clearError();
         setStatus("Loading seed list...");
 
         try {
@@ -94,10 +118,27 @@
           setStatus(`Done. Seed: ${seedFile}`);
         } catch (e) {
           setStatus(`Error: ${e.message}`);
+          showError(e, "Generation failed");
         }
       });
 
-      init().catch(e => setStatus(`Error initializing: ${e.message}`));
+      window.addEventListener("error", (event) => {
+        const err = event.error || new Error(event.message || "Unhandled window error");
+        setStatus(`Error: ${err.message}`);
+        showError(err, "Unhandled error");
+      });
+
+      window.addEventListener("unhandledrejection", (event) => {
+        const reason = event.reason;
+        const err = reason instanceof Error ? reason : new Error(String(reason || "Unhandled rejection"));
+        setStatus(`Error: ${err.message}`);
+        showError(err, "Unhandled promise rejection");
+      });
+
+      init().catch(e => {
+        setStatus(`Error initializing: ${e.message}`);
+        showError(e, "Initialization failed");
+      });
     </script>
   </body>
 </html>
