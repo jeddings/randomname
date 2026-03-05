@@ -1,22 +1,28 @@
 #!/usr/bin/env node
 const fs = require("fs");
 const path = require("path");
+const vm = require("vm");
 
-// Load the original generator code (non-module JS) into this Node process.
-// This works because generatenames.js defines a global function generateNames().
+// Load the original generator code (non-module JS) into a sandboxed context
 const generatorPath = path.join(__dirname, "..", "src", "generatenames.js");
 const generatorCode = fs.readFileSync(generatorPath, "utf8");
-eval(generatorCode); // defines generateNames
+
+const sandbox = { console }; // keep console available if needed
+vm.createContext(sandbox);
+vm.runInContext(generatorCode, sandbox, { filename: generatorPath });
+
+// The generator defines generateNames(...) in the global scope of that context
+const generateNames = sandbox.generateNames;
+if (typeof generateNames !== "function") {
+  console.error("Failed to load generateNames() from src/generatenames.js");
+  process.exit(1);
+}
 
 function usage() {
   console.log(`
 Usage:
   node bin/randomname.js --seed <filename-in-data-or-path> [--num 10] [--min 3] [--max 12] [--no-filter-dups]
   node bin/randomname.js --list
-
-Examples:
-  node bin/randomname.js --list
-  node bin/randomname.js --seed common-names.txt --num 20 --min 4 --max 12
 `);
 }
 
