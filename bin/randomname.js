@@ -27,9 +27,11 @@ Usage:
 }
 
 function parseArgs(argv) {
-  const args = { num: 10, min: 3, max: 12, filterDups: true, strict: false };
+  // Default generation options
+  const args = {num: 10, min: 3, max: 12, filterDups: true, strict: false };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
+    // Parse supported flags and consume values where required
     if (a === "--help" || a === "-h") args.help = true;
     else if (a === "--list") args.list = true;
     else if (a === "--seed") args.seed = argv[++i];
@@ -48,9 +50,11 @@ function parseArgs(argv) {
 
 function resolveSeedPath(seedArg) {
   if (!seedArg) return null;
+  // 1) Try as user-provided path (relative or absolute)
   const direct = path.resolve(process.cwd(), seedArg);
   if (fs.existsSync(direct)) return direct;
 
+  // 2) Fallback to bundled data directory
   const inData = path.join(__dirname, "..", "data", seedArg);
   if (fs.existsSync(inData)) return inData;
 
@@ -59,11 +63,13 @@ function resolveSeedPath(seedArg) {
 
 const args = parseArgs(process.argv);
 if (args.help) {
+  // Show help and exit successfully
   usage();
   process.exit(0);
 }
 
 if (args.list) {
+  // Print available seed list filenames from manifest
   const manifestPath = path.join(__dirname, "..", "data", "seedlists.json");
   const list = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
   for (const f of list) console.log(f);
@@ -72,11 +78,13 @@ if (args.list) {
 
 const seedPath = resolveSeedPath(args.seed);
 if (!seedPath) {
+  // Fail early when no valid seed file can be found
   console.error("Missing or invalid --seed. Use --list to see available lists.");
   usage();
   process.exit(1);
 }
 
+// Generate names and write raw output to stdout
 const seedText = fs.readFileSync(seedPath, "utf8");
 const out = generateNames(args.num, args.min, args.max, seedText, args.filterDups, args.strict);
 process.stdout.write(out);

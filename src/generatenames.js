@@ -7,6 +7,7 @@
 function generateNames(num, minLen, maxLen, nameList, filterOutDups, strictMode) {
   var genList = "";
 
+  // Normalize and validate requested output count
   num = parseInt(num, 10);
   if (isNaN(num) || num <= 0) {
     return genList;
@@ -31,6 +32,7 @@ function generateNames(num, minLen, maxLen, nameList, filterOutDups, strictMode)
     requestedMaxLen = tmpLen;
   }
 
+  // Build transition tables from seed names (1st, 2nd, and 3rd+ letters)
   var nameListStr = String(nameList == null ? "" : nameList);
   var names = nameListStr.toLowerCase().split("\n");
   var sourceNames = [];
@@ -50,12 +52,14 @@ function generateNames(num, minLen, maxLen, nameList, filterOutDups, strictMode)
     var curr = new String(trim(names[i]));
 
     if (curr.length === 0) {
+      // Ignore blank lines in the seed file
       continue;
     }
 
     sourceNames.push(String(curr));
 
     if (curr.length < 3) {
+      // Keep in sourceNames for duplicate checks, but skip model training
       continue;
     }
 
@@ -158,10 +162,12 @@ function generateNames(num, minLen, maxLen, nameList, filterOutDups, strictMode)
     }
   }
 
+  // If no usable training data, return empty result
   if (oneLetters.length === 0 || minNameLen === 10000) {
     return genList;
   }
 
+  // Clamp requested length bounds to observed seed-name bounds
   var effectiveMinLen = Math.max(requestedMinLen, minNameLen);
   var effectiveMaxLen = Math.min(requestedMaxLen, maxNameLen);
 
@@ -181,6 +187,7 @@ function generateNames(num, minLen, maxLen, nameList, filterOutDups, strictMode)
     return genList;
   }
 
+  // Pick a target length using observed length frequencies
   function pickTargetLength() {
     var totalWeight = 0;
     for (var idx = 0; idx < candidateLengths.length; idx++) {
@@ -204,6 +211,7 @@ function generateNames(num, minLen, maxLen, nameList, filterOutDups, strictMode)
     return candidateLengths[candidateLengths.length - 1];
   }
 
+  // Pick one character from a candidate set using weighted probabilities
   function pickWeightedLetter(candidates, getWeight) {
     if (candidates == null || candidates.length === 0) {
       return "";
@@ -231,6 +239,7 @@ function generateNames(num, minLen, maxLen, nameList, filterOutDups, strictMode)
     return candidates.charAt(candidates.length - 1);
   }
 
+  // Heuristics to avoid obviously low-quality names
   function looksReasonableName(name) {
     if (name == null || name.length < effectiveMinLen || name.length > effectiveMaxLen) {
       return false;
@@ -265,6 +274,7 @@ function generateNames(num, minLen, maxLen, nameList, filterOutDups, strictMode)
     return hasVowel;
   }
 
+  // Bounded Levenshtein distance with early exit once limit is exceeded
   function editDistanceWithinLimit(a, b, limit) {
     var aLen = a.length;
     var bLen = b.length;
@@ -306,6 +316,7 @@ function generateNames(num, minLen, maxLen, nameList, filterOutDups, strictMode)
     return prev[bLen] <= limit;
   }
 
+  // Strict mode: keep generated names close to at least one seed name
   function isCloseToAnySeed(name, maxDistance) {
     for (var i = 0; i < sourceNames.length; i++) {
       var seed = sourceNames[i];
@@ -341,10 +352,12 @@ function generateNames(num, minLen, maxLen, nameList, filterOutDups, strictMode)
   
   var generatedCount = 0;
   var generationAttempts = 0;
+  // Cap attempts to prevent long/near-infinite searches in sparse datasets
   var strictAttemptFactor = strictMode ? 6000 : 2000;
   var sourceSizeFactor = Math.max(1, Math.min(sourceNames.length, 500));
   var maxGenerationAttempts = Math.max(num * strictAttemptFactor, sourceSizeFactor * 40);
 
+  // Generate until we have enough names or hit the global attempt cap
   while (generatedCount < num && generationAttempts < maxGenerationAttempts) {
     generationAttempts++;
     var genName = "";
@@ -354,6 +367,7 @@ function generateNames(num, minLen, maxLen, nameList, filterOutDups, strictMode)
   
     while (sanity++ < 15000) {
       if (genName.length == 0) {
+        // Choose first letter from observed starting-letter distribution
         var firstLetter = pickWeightedLetter(oneLetters, function(candidate) {
           return one[candidate] || 0;
         });
@@ -363,8 +377,10 @@ function generateNames(num, minLen, maxLen, nameList, filterOutDups, strictMode)
       }
       
       if (genName.length == 1) {
+        // Choose second letter conditioned on the first letter
         var secondLetters = twoLetters[genName.charAt(0)];
         if (secondLetters == null || secondLetters.length == 0) {
+          // Dead-end path: restart this attempt from scratch
           genName = "";
           continue;
         }
@@ -372,6 +388,7 @@ function generateNames(num, minLen, maxLen, nameList, filterOutDups, strictMode)
           return two[genName.charAt(0)][candidate] || 0;
         });
         if (secondLetter.length === 0) {
+          // No weighted pick possible for this prefix; restart attempt
           genName = "";
           continue;
         }
@@ -379,6 +396,7 @@ function generateNames(num, minLen, maxLen, nameList, filterOutDups, strictMode)
       }
       
       if (genName.length > 1) {
+        // Choose next letter conditioned on the previous two letters
         var thirdLettersByFirst = threeLetters[genName.charAt((genName.length)-2)];
         var thirdLetters = thirdLettersByFirst == null ? null : thirdLettersByFirst[genName.charAt((genName.length)-1)];
         if (thirdLetters == null) {
@@ -390,12 +408,14 @@ function generateNames(num, minLen, maxLen, nameList, filterOutDups, strictMode)
           });
 
           if (thirdLetter.length === 0) {
+            // Transition table had no usable weight; restart attempt
             genName = "";
             continue;
           }
 
           genName += thirdLetter;
           if (genName.length >= targetLen) {
+            // Prefer ending bigrams that appeared in the source data
             var currentEndingPair = genName.substring(genName.length - 2);
             if (endPairs[currentEndingPair] != null) {
               stopProcessing = true;
@@ -409,6 +429,7 @@ function generateNames(num, minLen, maxLen, nameList, filterOutDups, strictMode)
         }
       
         if (stopProcessing) {
+          // Exit the inner build loop and evaluate whether to keep the name
           break;
         }
       }
@@ -423,6 +444,7 @@ function generateNames(num, minLen, maxLen, nameList, filterOutDups, strictMode)
     }
 
     if (useName && endPairs[genName.substring(genName.length - 2)] == null) {
+      // Enforce realistic endings seen in source data
       useName = false;
     }
 
@@ -435,6 +457,7 @@ function generateNames(num, minLen, maxLen, nameList, filterOutDups, strictMode)
     }
     
     if (filterOutDups) {
+      // Optionally reject names that exactly match seed entries
       for (var m = 0; m < sourceNames.length; m++) {
         if (sourceNames[m] == genName) {
           useName = false;
@@ -444,6 +467,7 @@ function generateNames(num, minLen, maxLen, nameList, filterOutDups, strictMode)
     }
     
     if (useName) {
+      // Output names in Title Case, one per line
       genList = genList + genName.charAt(0).toUpperCase() + genName.substring(1) + "\n";
       generatedCount++;
     }
@@ -453,16 +477,19 @@ function generateNames(num, minLen, maxLen, nameList, filterOutDups, strictMode)
 }
 
 function rndInt(max) {
+  // Main random helper used by weighted selection
   return Math.floor(Math.random()*max);
   //return rand(max);
 }
 
 function trim(s) 
 {
+  // Trim leading spaces/newlines/carriage returns
   while ((s.substring(0,1) == ' ') || (s.substring(0,1) == '\n') || (s.substring(0,1) == '\r')) {
     s = s.substring(1,s.length);
   }
 
+  // Trim trailing spaces/newlines/carriage returns
   while ((s.substring(s.length-1,s.length) == ' ') || (s.substring(s.length-1,s.length) == '\n') || (s.substring(s.length-1,s.length) == '\r')) {
     s = s.substring(0,s.length-1);
   }
@@ -474,6 +501,7 @@ rnd.today=new Date();
 rnd.seed=rnd.today.getTime();
 
 function rnd() {
+  // Legacy seeded PRNG kept for backward compatibility
   rnd.seed = (rnd.seed*9301+49297) % 233280;
   return rnd.seed/(233280.0);
 }
